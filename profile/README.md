@@ -38,6 +38,3 @@ Utilize the template repositories (`pipeline_template`, `dataset_template`, `pro
 ### Step 3: :speech_balloon: Join in discussions to make suggestions
 - Make suggestions for repo additions or enhancements
 - Ask questions on how to run things or where to find information
-
-[![Twitter Follow](https://img.shields.io/twitter/follow/UCSD_IGVF?style=social)](LINK_TO_TWITTER_PROFILE)
-[![GitHub stars](https://img.shields.io/github/stars/UCSD_IGVF/REPOSITORY_NAME?style=social)](LINK_TO_GITHUB_PROFILE)
