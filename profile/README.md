@@ -1,4 +1,4 @@
-# Welcome to the UCSD IGVF Award Repository :trophy:
+# Welcome to the UCSD IGVF Award Repository
 
 ![IGVF Logo](URL_OF_YOUR_LOGO.png)
 
