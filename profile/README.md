@@ -6,6 +6,46 @@ Characterize the transcriptomic and epigenomic responses of stem-cell-derived
 islet (SC-islet) cell types to metabolic and inflammatory stressors using
 10X Multiome (RNA + ATAC) and snm3C-seq (methylation + chromatin conformation).
 
+---
+
+## Active Projects
+
+### [Stimulated SC-Islets](https://github.com/orgs/IGVF-UCSD/projects/4)
+
+Multi-omic characterization of SC-islet responses to metabolic and inflammatory stress. Tasks are tracked as [GitHub Issues](https://github.com/IGVF-UCSD/.github/issues) and organized on the [project board](https://github.com/orgs/IGVF-UCSD/projects/4).
+
+**Looking to contribute?** Start with unblocked tasks, then work down the dependency graph:
+
+```
+No blockers (start here):
+  #3  INS secretion score
+  #4  DESeq2 pseudobulk
+  #5  Peak calling
+  #11 Reprocess snm3C-seq
+
+Layer 2:
+  #1  ChromBPNet ← #5
+  #2  Peak-to-gene links ← #4, #5
+  #6  Upload v2 to GCP ← #4, #5
+  #7  Gene modules ← #3, #4
+  #8  Begin v3 ← #4
+  #12 snm3C × Dominguez2020 ← #11
+  #14 CpGNet retraining ← #11
+
+Layer 3:
+  #9  Integration × Augsornworawat2023 ← #1, #2
+  #10 Integration × primary islet ← #1, #2, #4
+  #13 Base-GRNs ← #1
+  #15 Variant effect predictions ← #1, #2, #5, #14
+
+Final:
+  #16 Prioritize cREs for CRISPRi ← #1, #2, #7, #13, #15
+```
+
+<!-- Add new projects below this line -->
+
+---
+
 ## Experimental Design
 
 ### Organoid differentiation and stimulation
@@ -40,8 +80,6 @@ Differentation protocol: doc/dacc/protocols/Pancreatic_beta_cell_diff_v2_Oct2022
 ### Replicates
 
 Targeting 2 biological replicates per condition-timepoint, with up to 3 total replicates for controls.
-
-_Coming soon_
 
 ## IGVF data
 
