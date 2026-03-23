@@ -6,13 +6,15 @@ Characterize the transcriptomic and epigenomic responses of stem-cell-derived
 islet (SC-islet) cell types to metabolic and inflammatory stressors using
 10X Multiome (RNA + ATAC) and snm3C-seq (methylation + chromatin conformation).
 
-# Experimental Design
+## Experimental Design
 
-## Sample tracker
+### Organoid differentiation and stimulation
+
+Differentation protocol: doc/dacc/protocols/Pancreatic_beta_cell_diff_v2_Oct2022_CMP05979.pdf
+
+### Sample tracker
 
 [Google Sheets — Sample tracker](https://docs.google.com/spreadsheets/d/1fvjK-2oZLOi-dFaP15h7vXcPuoPEkTjN_Ft0xI0N6r8/edit#gid=1331888441)
-
-## Multiome
 
 ### Cell lines
 
@@ -39,13 +41,7 @@ islet (SC-islet) cell types to metabolic and inflammatory stressors using
 
 Targeting 2 biological replicates per condition-timepoint, with up to 3 total replicates for controls.
 
-## snm3C-seq
-
 _Coming soon_
-
-## Organoid differentiation and stimulation
-
-Differentation protocol: doc/dacc/protocols/Pancreatic_beta_cell_diff_v2_Oct2022_CMP05979.pdf
 
 ## IGVF data
 
