@@ -1,0 +1,29 @@
+# Only track org-level documentation in this repo.
+# All subdirectories have their own git repos or are data.
+
+# Data directories
+igvf-data/
+public-data/
+ref-data/
+
+# Code directories (each has own git repo)
+tools/
+pipelines/
+manuscripts/
+gene-networks/
+
+# Project directories
+doc/
+updates/
+
+# OS files
+.DS_Store
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# IDE
+.vscode/
