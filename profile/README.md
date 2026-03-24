@@ -1,3 +1,6 @@
+<!-- This file renders on the GitHub org landing page: https://github.com/IGVF-UCSD -->
+<!-- For the full project directory guide, see the top-level README.md -->
+
 # The impact of genomic variation on environment-induced changes in pancreatic beta cell states
 
 ## Goal

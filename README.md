@@ -1,3 +1,5 @@
+<!-- Project directory guide. For the GitHub org landing page, see profile/README.md -->
+
 # The impact of genomic variation on environment-induced changes in pancreatic beta cell states
 
 ## Organoid differentiation and stimulation
