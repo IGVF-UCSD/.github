@@ -16,9 +16,25 @@ Reference: [Computational Pipelines Doc](https://docs.google.com/document/d/1ezA
 | **Peak-to-gene linking** | — | — | — |
 | **Sequence modeling** | ChromBPNet | — | — |
 
+### v3 steps (current — IGVF uniform pipeline)
+
+Code in `igvf-data/igvf_sc-islet_10X-Multiome/bin/`. Stages 4–10 still need v3 implementations; see [bin/README.md](../igvf-data/igvf_sc-islet_10X-Multiome/bin/README.md).
+
+| Step | Description | Status |
+|------|-------------|--------|
+| 1. Get data | IGVF portal download (54 samples) | complete |
+| 2. Sample QC | RNA QC + AMULET; ATAC QC scripted | RNA done; ATAC deferred |
+| 3. Cell annotation | RNA merge → normalize → reduce → integrate → annotate | annotate step pending |
+| 4. ATAC integration | port from v2 | not started |
+| 5. Peak calling | port from v2 | not started |
+| 6. Differential analysis | port from v2 | not started |
+| 8. ChromBPNet | port from v2 | not started |
+| 9. Upload (GCP) | port from v2 | not started |
+| 10. Submission | port from v2 | not started |
+
 ### v1 steps (prototype)
 
-Code in `igvf-data/igvf_sc-islet_10X-Multiome/scratch/2026_01_30/` and `scratch/2026_02_02/`.
+Code in `igvf-data/igvf_sc-islet_10X-Multiome/scratch/2026_01_30/` and `scratch/2026_02_02/`. Indexed by [archive/v1/MANIFEST.md](../igvf-data/igvf_sc-islet_10X-Multiome/archive/v1/MANIFEST.md).
 
 | Step | Description |
 |------|-------------|
@@ -32,9 +48,9 @@ Code in `igvf-data/igvf_sc-islet_10X-Multiome/scratch/2026_01_30/` and `scratch/
 | 8. ChromBPNet | Sequence model training, contribution scores, TF-MoDISco motifs, variant scoring |
 | 9. Upload | Cell-by-X matrices, pseudobulks, browser tracks, GRN outputs |
 
-### v2 steps (refined)
+### v2 steps (archived — CellRanger-ARC + YAP)
 
-Code in `igvf-data/igvf_sc-islet_10X-Multiome/bin/`.
+Code in `igvf-data/igvf_sc-islet_10X-Multiome/archive/v2/bin/`. Frozen 2026-04-28; see [archive/v2/MANIFEST.md](../igvf-data/igvf_sc-islet_10X-Multiome/archive/v2/MANIFEST.md).
 
 | Step | Description |
 |------|-------------|
