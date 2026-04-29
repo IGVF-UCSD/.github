@@ -1,6 +1,77 @@
 ## Daily Task List
 This document serves as a scratchpad for tracking daily tasks and progress. Upon first read of this doc in a session, review the "Workflow" section of [CLAUDE.md](CLAUDE.md) to understand how this doc fits into the overall project process. You may edit this doc as needed to track your work, but remember to also update the corresponding GitHub issue thread with progress and findings.
 
+## 04/29/2026
+
+### Morning state: most of yesterday's "tomorrow" list already finished overnight
+Discovered after first squeue check that the user re-sbatched the whole stage-4 chain last night. Confirmed against `sacct`:
+- `9821682` `build_merge_annotated` — COMPLETED 18:43 (3 min). `merge_annotated.h5ad` (~20.4G) on disk.
+- `9828109` `pseudobulk_RNA` — COMPLETED 21:04 (7m). Log shows shape `(298085, 62757)` — full 63k gene set, 216 pseudobulks. ✅
+- `9818484` `merge_ATAC` — COMPLETED 21:13 (2h56m). `merged.h5ads` (425M) on disk.
+
+So today became: re-run the comparison, kick off ATAC pseudobulk, ship cleanups.
+
+### Multiome — v2 vs v3 RNA pseudobulk comparison (full gene set)
+Re-ran [`compare_pseudobulk_RNA.py`](igvf-data/igvf_sc-islet_10X-Multiome/scratch/2026_04_28/4_pseudobulking_comparison/compare_pseudobulk_RNA.py) against the new full-gene v3 output, then again with the project color palette. Plots regenerated in `plots/`.
+
+**PCA variance ratios (PC1):**
+| Variant | v2 | v3 |
+|---|---|---|
+| Native gene set | 12.2 % | 8.4 % |
+| Common (intersected) genes | 13.9 % | 11.6 % |
+
+Full gene set actually *reduced* v3 PC1 dominance vs the earlier 23k restricted run (which had v3 PC1 = 19 %). The new pseudobulk is broader / less PC1-driven, but still less concentrated than v2. The "v3 looks less separated" impression was driven by the missing genes from `min_cells_per_gene` filtering — confirmed by the new `build_merge_annotated.py` stage giving DESeq2 the full transcriptome.
+
+**Comparison script now uses [`igvf-data/igvf_sc-islet_10X-Multiome/config/loader.py`](igvf-data/igvf_sc-islet_10X-Multiome/config/loader.py)** for cell_type / condition / timepoint / differentiation_batch palettes. Helpers `_ordered_categories()` and `_color_for()` inside the script keep matplotlib from picking its own colors.
+
+### Multiome — ATAC pseudobulk (`2d_pseudobulk_ATAC.sh`) finally running
+Three failed submissions before the real fix landed. Job `9870324` is now actually running (verified past the fast-fail window).
+
+**Bugs fixed in `tools/single_cell_utilities/snapatac2/pseudobulk.sh`:**
+1. `script_path=/cellar/users/aklie/projects/igvf/single_cell_utilities/...` — pre-reorg path that doesn't exist. Now hardcoded to `/carter/users/aklie/projects/stimulated_sc-islets/tools/single_cell_utilities/snapatac2/pseudobulk.py`. (The SLURM-staged copy in `/cm/local/.../job<id>/` is just the .sh, so `dirname $0` / `BASH_SOURCE[0]` cannot find the sibling .py — must be absolute.)
+2. `source activate` silently fell back to /usr/bin/python in the SLURM shell (the documented `doc/ENVS.md` gotcha) — `import hdf5plugin` then crashed. Replaced `python` with `$PYTHON_BIN=/cellar/users/aklie/opt/miniconda3/envs/scverse-lite-py311/bin/python`.
+
+**Bug fixed in `bin/4_pseudobulking/2d_pseudobulk_ATAC.sh`:**
+- Sanity check used `[ ! -d $input_h5ads_path ]` for `merged.h5ads`, but snapatac2 writes that as a single HDF5 file (not a directory). Switched to `[ ! -e ... ]`.
+
+**Convention switch — `+` → `-` separator (per user):**
+- Default grouping for ATAC pseudobulk: `cell_type+condition` → `cell_type-condition`. Updated `bin/4_pseudobulking/README.md` and `configs/pseudobulk_ATAC.yaml`.
+- Renamed annotation TSVs in [`results/3_cell_annotation/rna/integrate/round_2/annotation/`](igvf-data/igvf_sc-islet_10X-Multiome/results/3_cell_annotation/rna/integrate/round_2/annotation/): `harmony_round_2_leiden_1.0_cell_type+condition.txt` → `cell_type-condition.txt`; `cell_type+condition+timepoint.txt` → `cell_type-condition-timepoint.txt`. Stage-3 cell_annotation.ipynb still writes `+` and should be updated.
+
+### Stage 4 cleanup applied
+- `bin/4_pseudobulking/2a_integrate_ATAC.tsv` → `bin/4_pseudobulking/metadata/2a_integrate_ATAC.tsv`. Updated `2a_prep_ATAC_files.py` (writes) and `2b_merge_ATAC.sh` (reads).
+- `2b_merge_ATAC.sh` slurm_logs path now per-stage subdir: `slurm_logs/2b_merge_ATAC/`.
+- `slurm_logs/` cleaned: removed 2 superseded RNA pseudobulk attempts (`9818854`, `9819429`); moved orphan `merge_ATAC` log into `slurm_logs/2b_merge_ATAC/`; removed broken-run subdirs from earlier failed ATAC attempts.
+
+### Current cluster state
+- `9870324` `pseudobulk_ATAC_cell_type-condition` — RUNNING (~30 min expected). Triggers afterok deps `9870325..9870328` (frag_counts, tagAlign, count_bws, norm_bws).
+
+### Stage reorg (1_get_data/ pattern applied to remaining stages)
+Pattern from stage 1: top-level = `.sh` orchestrators + (notebooks where interactive); `scripts/` holds the underlying `.py`/`.R`/`.sh` helpers; `configs/`, `metadata/`, `slurm_logs/`, `README.md` round it out.
+
+Files moved:
+- `bin/2_sample_qc/1_prep_files.py` → `scripts/prep_files.py`
+- `bin/2_sample_qc/3b_consolidate_AMULET.py` → `scripts/consolidate_AMULET.py`
+- `bin/3_cell_annotation/0_prep_files.py` → `scripts/prep_files.py`
+- `bin/5_peak_calling/0_prep_files.py` → `scripts/prep_files.py`
+- `bin/5_peak_calling/4_pseudobulk_peaks.py` → `scripts/pseudobulk_peaks.py`
+- `bin/6_differential_analysis/0_prep_files.py` → `scripts/prep_files.py`
+
+New empty dirs (with `.gitkeep` where needed): `metadata/` for stages 5/6/8/10; `slurm_logs/.gitkeep` for 2/3/5/6/8/10.
+
+Reference updates: 14 sites across `.sh`, `.py`, `.R`, `.yaml`, README files in stages 1, 2, 3, 4, 5, 6 (plus internal docstrings of the moved files). Verified clean with `grep -rn` (no stale refs left except the legitimate `archive/v2/bin/5_peak_calling/4_pseudobulk_peaks.py` heritage marker).
+
+### Multi-resolution pseudobulking (planned, not built today)
+Per user note: stage 4 will eventually need to pseudobulk at multiple resolutions for both RNA and ATAC. Saved as a project memory so future sessions design with this in mind. Today only one grouping per modality is wired up (`sample_id-cell_type` for RNA; `cell_type-condition` for ATAC).
+
+### Remaining items
+- Update stage-3 `4_cell_annotation.ipynb` to write `harmony_round_2_leiden_1.0_<grouping>.txt` with `-` separator (so future re-runs match the renamed annotation TSVs).
+- Verify ATAC pseudobulk completion (job `9870324` + 4 dependents) and inspect outputs. Job is healthy at ~24 min in; v2 reference ran in ~7h, 2-day wall time has plenty of headroom.
+- After ATAC outputs land: stage 5 peak calling (#5) and stage 8 ChromBPNet (#1) become unblocked.
+- Memory updates saved today: separator convention (`+` → `-`); color config reference (`config/loader.py`); multi-resolution pseudobulking project plan.
+
+---
+
 ## 04/28/2026
 
 ### 1. Uniform documentation of `public-data/` datasets
