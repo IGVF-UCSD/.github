@@ -67,6 +67,49 @@ Per user note: stage 4 will eventually need to pseudobulk at multiple resolution
 ### Remaining items
 - Verify ATAC pseudobulk completion (job `9870324` + 4 dependents) and inspect outputs. Job healthy at ~63 min in; v2 reference ran in ~7h, 2-day wall time has plenty of headroom.
 - After ATAC outputs land: stage 5 peak calling (#5) and stage 8 ChromBPNet (#1) become unblocked.
+
+### Hard-validation plan for today's outputs (queued — not just exit-code checks)
+
+**Why:** today produced a lot of outputs across two pipelines (v3 stage-4 ATAC pseudobulk + v2 ChromBPNet steps 9–12). Several jobs SLURM-FAILED but produced valid load-bearing outputs (e.g., step 12 `finemo report` failure, step 9 SIGPIPE on the combine tail, ATAC count_bws silent failure pre-fix). Exit-code-only validation isn't enough — need to verify the actual files are *correct*, not merely *present*.
+
+**v3 stage-4 ATAC pseudobulk (`results/4_pseudobulking/atac/cell_type-condition/`):**
+1. **Fragment counts** — `fragments/frag_counts.tsv`: 24 ctcs, all > 0, totals roughly match v2 reference (`archive/v2/results/4_integration/atac/pseudobulk/cell_type-condition/fragments/frag_counts.tsv`). Spot-check SC.beta_control, SC.delta_dex (extremes).
+2. **Per-ctc fragment files** — `fragments/<ctc>.bed.gz`: gzip integrity (`gzip -t`), record count matches `frag_counts.tsv`, chromosomes match `hg38.chrom.sizes`.
+3. **tagAlign files** — `tagAlign/<ctc>.tagAlign.sort.gz` + `.tbi`: 24 each, sorted (test with `tabix`), record count = 2 × `frag_count` (each fragment → 2 reads).
+4. **Count bigwigs** (`count_bws/<ctc>_unstranded.bw`, post-`9888030` re-run): 24 non-empty `.bw`, valid bigwig (`bigWigInfo`), chrom set matches hg38, sum of values reasonable per ctc.
+5. **Normalized bigwigs** — `norm_bws/<ctc>.fpm.bw` + `<ctc>.scale_factor.txt`: scale_factor = 1e6/frag_count to within 1e-3, bigwig valid.
+6. **Spot-check vs v2** — load 2-3 ctc count bigwigs at a known peak (e.g., INS promoter), compare v3 vs v2 — should be similar magnitude, similar shape. Plot.
+
+**v2 ChromBPNet step 9 motif clustering (`archive/v2/results/8_chrombpnet/cell_type-condition/motifs/`):**
+1. `cluster/clustered_motifs.pfm` — 43 motifs, all rows valid PPMs (sum to 1, non-negative).
+2. `meme/combined.meme` — 43 MOTIF lines, MEME header valid.
+3. `tomtom/<id>.tomtom.txt` — non-empty for each cluster; spot-check a known TF (CTCF, MAFB, NEUROD1) has a high-confidence assignment.
+4. `tfs_initial.txt` — 43 lines, well-formed (cluster_id\tTF\tevalue), e-values ascending.
+5. `combined_mapped.meme` — same MOTIF count as combined.meme; MOTIF lines now show TF names.
+
+**v2 ChromBPNet step 11 synthetic h5 (`motifs/clustered_motifs.modisco.h5` + name_map):**
+1. h5 has 43 `pos_patterns/pattern_<i>` groups; each with `sequence`/`contrib_scores`/`hypothetical_contribs` shape `(30, 4)`.
+2. `name_map.tsv` — 43 lines, ordering = 36 Average_* (sorted by id) + 7 singletons (alphabetic).
+3. Spot-check pattern_0: PPM rows sum to 1 (or 0 for pad rows = uniform 0.25), `contrib_scores = PPM × IC_per_row`, padding rows in contrib are 0.
+
+**v2 ChromBPNet step 10 marginalization (per-ctc `fold_0/chrombpnet/1.0/marginalization/`):**
+1. 24 ctcs each have 6 `.npz` files + `marginalization.html`.
+2. Each `.npz` loads (`np.load`), arrays non-empty, no all-NaN.
+3. Open 1-2 `.html` files: visual sanity check that the marginalization plots show motif effects.
+4. `marginalization_data.motifs.npz` — ensure all 43 clustered motifs are represented (one effect estimate per motif per ctc).
+
+**v2 ChromBPNet step 12 unified FiNeMo hits (per-ctc `average/motifs/hits/counts_unified/`):**
+1. 24 `hits.tsv` files, all > 100K rows.
+2. Hit count scales with cell-type abundance: SC.beta > SC.alpha > SC.EC > SC.delta — already confirmed (1.4M → 0.15M).
+3. Motif IDs in `hits.tsv` column 4 (?) ∈ {`pos_patterns.pattern_0`, …, `pos_patterns.pattern_42`} — no orphan ids.
+4. Each motif has hits across multiple ctcs (no motif gets 0 hits everywhere — would suggest a synth-h5 problem).
+5. Spot-check: a known TF (e.g., MAFB cluster) shows hits enriched in SC.beta vs other ctcs.
+6. `hits_unique.tsv` — slightly fewer rows than `hits.tsv` (de-duplication).
+
+**Procedure:**
+- Write each block as a numbered cell in a notebook under `igvf-data/igvf_sc-islet_10X-Multiome/scratch/2026_04_30/validate_today/` (RNA pseudobulk comparison from yesterday is the model).
+- Each cell prints PASS/FAIL with the metric value, so the notebook serves as both validation and an evidence record.
+- Wire it into `bin/4_pseudobulking/` and `archive/v2/bin/8_chrombpnet/` as a one-shot validation script if it'd be useful for v3 ChromBPNet later.
 - **Separator convention (refined per user):** the `+` → `-` rule is *strict* for public-facing outputs (portal submission, GCP, deliverables). Internal/legacy notebook code that still emits `+` (e.g., stage-3 `4_cell_annotation.ipynb`) is NOT to be proactively patched — rename outputs in-place when needed. Memory updated to reflect.
 - Memory updates saved today: separator convention (clarified); color config reference (`config/loader.py`); multi-resolution pseudobulking project plan; never commit slurm logs.
 
