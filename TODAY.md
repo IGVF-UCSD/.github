@@ -24,34 +24,84 @@ Main goal: bring in the additional samples that have finished sequencing, while 
 - Plan re-run scope: full reprocess vs incremental (just new samples), and resolve normalization (`juicer_tools post -k KR` vs alternative — needs Sara's confirmation).
 - Land cleanup as part of the v3 migration (item 2) so snm3C lives in the same canonical layout.
 
-### Progress (today)
+### Progress (today) — end-of-day wrap-up
 
-**Task 1 — public-data/ documentation:** all 11 dataset READMEs written (1 foreground, 10 background subagents). Plan saved at `~/.claude/plans/immutable-twirling-stearns.md`. Each README follows uniform template (Source / Study design / What's here / Status / Use in this project) with `_TODO_` markers where filesystem evidence wasn't sufficient. **Still needed:** top-level `public-data/README.md` index (deferred), backfill `_TODO_`s (HPAP provenance, EndoC cell-type discrepancy, etc.), `doc/DATA.md` "Public datasets" section, two-line `CLAUDE.md` touch.
+**Task 1 — public-data/ documentation:** all 11 dataset READMEs written (1 foreground + 10 background subagents). Each follows the uniform template (Source / Study design / What's here / Status / Use in this project) with `_TODO_` markers where filesystem evidence was insufficient. **Deferred:** top-level `public-data/README.md` index, `_TODO_` backfill (HPAP provenance, EndoC cell-type discrepancy, etc.), `doc/DATA.md` "Public datasets" section, two-line `CLAUDE.md` touch.
 
-Notable findings to surface:
-- **HPAP** — provenance recovered from `*-celltype-*.txt` URL manifests: PanKbase S3 (`pankbase-data-v1.s3.amazonaws.com/...`). 12 cell types enumerated, 5-fold CV models trained. User to backfill citation/donor count.
-- **Wang2023** — 34 donors split 11 ND / 8 Pre-T2D / 15 T2D. A subset has 10x Multiome (RNA+ATAC), not just snATAC — slug undersells.
-- **Chiou2021** — 5 SRRs locally are all non-diabetic donors (T2D arm in the paper is scRNA, not snATAC). hg38, ChromBPNet fold 0 only.
-- **Zhu2023** — sub-series GSE202497 (RNA) + GSE202498 (ATAC) of SuperSeries GSE202500. **hg19** alignment, 5 timepoints, 1 H1 hESC donor. Status raw.
-- **Augsornworawat2023** — sample sheet has 7 SC-Islets but `processed/` has 18 dirs (including CRISPRA, ARID1B/GFP, transplanted, human islet controls). Sample sheet is materially incomplete.
-- **Dominguez2020** — 4-assay study (RNA + ATAC + ChIP + WGBS), only ChIP + WGBS downloaded locally. nf-core/methylseq run failed.
-- **mo_EndoC-bH1** — tiny: 1 sample × 3 reps. Both bpnet-lite and ChromBPNet 5-fold trained.
-- **EndoC-bH1_treated** — workflow how-to moved to `bin/chrombpnet/README.md`. Cell-type-list discrepancy flagged (current README lists islet cell types, not EndoC).
+**Task 2 — v3 multiome migration:** all stages 1–10 ported (only stage 9 GCP upload deferred per user "cross that bridge"). Final commit chain in `igvf-data/igvf_sc-islet_10X-Multiome/`:
+- `99c1a96` — WIP checkpoint of 04/06–04/16 v2 work
+- `3df5e68` — Archive v2: `bin/` → `archive/v2/bin/`, `results/` → `archive/v2/results/` (1.9T)
+- `00d8505` — Promote v3 from scratch → `bin/`; 14 scripts refactored to `${DATASET_ROOT}`
+- `4ce47ad` — Restructure (results match bin numbering, `3_integration` → `3_cell_annotation`, archive v1)
+- `9f6186d` — Fix bespoke remnants (array=1-16 → 1-54)
+- `d943549` — Port v3 stages 4 (pseudobulking) + 5 (peak calling) + canonical download
+- `c1dac57` — Port v3 stages 4 (RNA pseudobulk) + 6 (DESeq2) + 8 (ChromBPNet)
+- `189a7e2` — Move ATAC merge + label-transfer to `bin/4_pseudobulking/` (it's pseudobulk prep)
+- `ebb71bf` — Drop unsolicited `2c_transfer_annotations.sh`; pseudobulk reads RNA labels directly (matches v2)
+- `72df39e` — Port v3 stage 10 (submission)
+- `db400ea` — `bin/1_get_data/` reorg (`.py` → `scripts/`, renumber 0_preprocess → 2_preprocess); relocate stage-2/3 input TSVs to per-stage `metadata/` dirs
+- `0970181` — Add `build_merge_annotated.py` step + rewire pseudobulk to read full ~63k gene set
+- `14cc97f` — Move `build_merge_annotated` to `bin/4_pseudobulking/` (it's pseudobulk prep, not cell annotation)
+- `faf5c21` — RNA pseudobulk: separator `+` → `-`, mem 128G → 64G
 
-**Task 2 — v3 migration + v1/v2 archive:** done in nested repo at `igvf-data/igvf_sc-islet_10X-Multiome/`. Three commits:
-1. `99c1a96` — WIP checkpoint of 04/06–04/16 v2 work (chrombpnet pipeline, DESeq2 joint scripts, peak_calling pseudobulk, submission renumbering)
-2. Archive v2 — `bin/` → `archive/v2/bin/` (git mv, history preserved); `results/` → `archive/v2/results/` (1.9T, gitignored, instant rename); v1+v2 manifests written
-3. Promote v3 — `scratch/2026_04_09/v3_uniform_pipeline/{1_get_data,2_sample_qc,3_integration}` → `bin/`; `results/` → `results/` (448G); 14 scripts refactored from hardcoded `SCRATCH=/abs/path` to `${DATASET_ROOT}` (env-var with script-relative fallback). `4_comparison/` left in scratch as v2-vs-v3 archival.
+Parent project: commit `876086c` — completed doc reorg into `doc/`, refreshed `CLAUDE.md` + `doc/{DATA,OVERVIEW,PIPELINES}.md` for v3.
 
-Parent project doc updates: `CLAUDE.md`, `doc/DATA.md`, `doc/OVERVIEW.md`, `doc/PIPELINES.md` all updated to reflect v3-current / v2-archived / v1-archived-in-place.
+External fix: commit `0d741bc` in `tools/single_cell_utilities` — `pseudobulk.py` `sys.path.append` → `sys.path.insert(0, ...)` to fix the `functional_analysis.utils` package-vs-module collision that broke the first RNA pseudobulk SLURM run.
 
-**Outstanding for task 2:**
-- v3 RNA `4_cell_annotation.ipynb` produced no outputs — finish in new `bin/3_integration/` location
-- Port `make_batch_info.py` helper from `archive/v2/bin/4_integration/scripts/` to v3's `bin/3_integration/scripts/`
-- Port stages 4–10 (ATAC integration, peak calling, DESeq2, ChromBPNet, upload, submission) from `archive/v2/bin/` to v3 `bin/`
-- `pipelines/multiome-cell-annotation/scratch/*` references to old `bin/` and `results/` paths
+**Task 3 — snm3C v0 archive + light cleanup:** committed in `igvf-data/igvf_sc-islet_snm3c/`:
+- `f227efc` — v0 archive (42-sample JE002 baseline) + light cleanup (READMEs rewritten, bespoke → scratch, stage 5 numbering, stage 8 path bug)
+- `6861388` — `bin/v1_RERUN_PLAN.md` (479 lines) — stage-by-stage execution doc for incorporating the 12 DM060 samples downstream
 
-**Task 3 — snm3C-seq reprocess:** not started.
+DM060 incorporation gap confirmed via [`results/1_get_data/sample_processed_mapping.tsv`](igvf-data/igvf_sc-islet_snm3c/results/1_get_data/sample_processed_mapping.tsv): 42 JE002 = `incorporated`, 12 DM060 = `sample_qc_only`. v1 re-run is multi-day cluster compute pending user sign-off + 6 open questions.
+
+**GitHub issues updated:** #1 (ChromBPNet), #4 (DESeq2), #5 (peak calling), #6 (GCP upload), #8 (v3 migration), #11 (snm3C).
+
+### Cluster jobs running at end of day
+
+- **Multiome ATAC merge** (`bash bin/4_pseudobulking/2b_merge_ATAC.sh`) — sbatched earlier; 500G mem, 4 CPU, 14d wallclock. Outputs `results/4_pseudobulking/atac/merged.h5ads`.
+- **Multiome RNA pseudobulk** (`bash bin/4_pseudobulking/1_pseudobulk_RNA.sh`) — first attempt errored on `single_cell_utilities` `functional_analysis.utils` package-vs-module collision (fixed in `0d741bc`); user re-sbatched. Wrote pseudobulks against the OLD `annotated.h5ad` (~23k genes, sample_id-cell_type grouping) — these are now superseded by the `merge_annotated.h5ad` flow added in commit `14cc97f`. Re-run tomorrow against full 63k gene set.
+
+### v2 vs v3 RNA pseudobulk PCA comparison
+
+Set up at [`igvf-data/igvf_sc-islet_10X-Multiome/scratch/2026_04_28/4_pseudobulking_comparison/`](igvf-data/igvf_sc-islet_10X-Multiome/scratch/2026_04_28/4_pseudobulking_comparison/). Initial finding (against the now-superseded 23k-gene v3 pseudobulk): v3 PC1 dominates more than v2's (19% vs 12% on common gene set), consistent with user's "looks less separated" impression. Likely cause: the `min_cells_per_gene` filter applied during `merge_RNA` dropped ~13k genes that v2 retained — hence the new `build_merge_annotated.py` step that gives DESeq2 the full transcriptome. Re-run the comparison after the new pseudobulk lands.
+
+---
+
+### Action items for tomorrow (04/29)
+
+**Multiome — finish RNA pseudobulk against full gene set:**
+1. Wait for currently-running RNA pseudobulk job to finish (or kill — its output is now superseded).
+2. `bash bin/4_pseudobulking/0_build_merge_annotated.sh` — builds `merge_annotated.h5ad` (~21G, ~298k cells × ~63k genes, ~1 hour).
+3. `bash bin/4_pseudobulking/1_pseudobulk_RNA.sh` — re-pseudobulk against full gene set; default grouping `sample_id-cell_type`.
+4. Re-run [`scratch/2026_04_28/4_pseudobulking_comparison/compare_pseudobulk_RNA.py`](igvf-data/igvf_sc-islet_10X-Multiome/scratch/2026_04_28/4_pseudobulking_comparison/compare_pseudobulk_RNA.py) — does PCA separation improve with full gene set?
+
+**Multiome — ATAC pseudobulk:**
+5. Check `2b_merge_ATAC.sh` job status (`squeue -u $USER`). If finished, sbatch `bash bin/4_pseudobulking/2d_pseudobulk_ATAC.sh` (default `cell_type+condition`). Reads RNA harmony labels directly from stage 3 (no transfer step).
+
+**Cleanup follow-ups (small):**
+- Move `bin/4_pseudobulking/2a_integrate_ATAC.tsv` → `bin/4_pseudobulking/metadata/2a_integrate_ATAC.tsv` for consistency with stages 2/3; update `2a_prep_ATAC_files.py` (writes) + `2b_merge_ATAC.sh` (reads).
+- Apply the `bin/1_get_data/` reorg pattern (`.py` → `scripts/`, per-stage `metadata/`, `slurm_logs/.gitkeep`) to remaining stages 2/3/5/6/8/10.
+
+**Multiome — downstream stages waiting on stage 4 outputs:**
+- Stage 5 peak calling (depends on ATAC pseudobulks)
+- Stage 6 DESeq2 RNA (depends on RNA pseudobulks)
+- Stage 8 ChromBPNet (depends on stage 4 ATAC + stage 5 peaks)
+
+**Multiome — cell annotation finish:**
+- v3 `bin/3_cell_annotation/4_cell_annotation.ipynb` already produced annotated.h5ad + cell_metadata.tsv (verified at `results/3_cell_annotation/rna/integrate/round_2/annotation/`); the earlier "didn't produce outputs" claim was wrong.
+
+**Open methodology / decision points (deferred):**
+- ATAC DESeq2 strategy (#4) — v2 had no implementation
+- Stage 9 GCP upload bucket layout (#6) — "cross that bridge when we come to it"
+- snm3C HiC normalization (`-k KR` vs alternative) — Sara's call
+- snm3C cell-type annotation: re-cluster from scratch vs project v0 labels
+
+**snm3C — v1 re-run** (multi-day cluster compute, requires user sign-off):
+- Resolve open questions 1, 2, 5 in [`bin/v1_RERUN_PLAN.md`](igvf-data/igvf_sc-islet_snm3c/bin/v1_RERUN_PLAN.md) before kickoff
+- Smoke test: `1_prepare.sh` on a single DM060 sample first
+- End-to-end estimate: ~2 weeks
+
+**Memory updates worth saving:** `conda activate` silently falls back to `/usr/bin/python` in non-interactive shells (already in `doc/ENVS.md`); `single_cell_utilities/functional_analysis/` has a sibling `functional_analysis.py` that collides with package import — must use `sys.path.insert(0, ...)` to resolve to the package.
 
 ---
 
