@@ -29,9 +29,12 @@ pseudobulk, differential analysis, and peak calling.
 
 ## Versioning
 
-Three analysis versions are uploaded as parallel subtrees. Reference data
-(`0_ref/`) is shared. Pipeline-derived outputs (cell-by-X matrices, pseudobulks)
-are version-specific because they depend on the upstream processing.
+Three analysis versions are uploaded as parallel, self-contained subtrees.
+Each version has its own `0_ref/`, `sample_manifest.tsv`, `1_cell-by-X/`,
+and `2_pseudobulk/`. Reference data is *not* assumed shared — pipelines
+ship different barcode whitelists, different reference indices, and
+sometimes different annotation files, so reference content is canonicalized
+per version even when individual files overlap.
 
 | Version | Pipeline | Samples | Notes |
 |---|---|---|---|
@@ -56,16 +59,18 @@ These will be added once their methodology is settled (issues #4, #5).
 
 ```
 gs://igvf-data/igvf_sc-islet_10X-Multiome/
-├── 0_ref/                              # shared reference data (all versions)
 ├── v1/                                 # CellRanger-ARC + YAP, 44 samples
+│   ├── 0_ref/
 │   ├── sample_manifest.tsv
 │   ├── 1_cell-by-X/
 │   └── 2_pseudobulk/atac/
 ├── v2/                                 # CellRanger-ARC + YAP, 54 samples
+│   ├── 0_ref/
 │   ├── sample_manifest.tsv
 │   ├── 1_cell-by-X/
 │   └── 2_pseudobulk/atac/
 └── v3/                                 # IGVF uniform pipeline, 54 samples
+    ├── 0_ref/
     ├── sample_manifest.tsv
     ├── 1_cell-by-X/
     ├── 2_pseudobulk/atac/
@@ -74,49 +79,57 @@ gs://igvf-data/igvf_sc-islet_10X-Multiome/
 
 ---
 
-## 0_ref/ — Reference data (shared across versions)
+## v{N}/0_ref/ — Reference data (per version)
 
-Files used across analyses. Sourced from `ref/` and `results/1_get_data/` on
-the HPC.
+Each version's `0_ref/` is a snapshot of the reference inputs that were
+actually used by that pipeline. Most files are common across versions
+(GTF, blacklist, motif DB, gene lists, color palettes), but they're
+copied per version so the bucket subtree for any version is fully
+self-contained — no cross-version path lookups, no implicit shared state.
+Pipeline-specific files (barcode whitelists, ARC templates) only ship
+under the versions that use them.
 
-### SC-islet gene markers
+### SC-islet gene markers (all versions)
 
 **Files**
 - `SC.islet.marker_genes.csv`
 
-### ENCODE blacklist
+### ENCODE blacklist (all versions)
 
 **Files**
 - `blacklist.bed.gz`
 
-### Gene annotation
+### Gene annotation (all versions)
 
 **Files**
 - `IGVFFI9573KOZR.gtf.gz`
 
-### Motif database
+### Motif database (all versions)
 
 **Files**
 - `motifs.meme` — Vierstra v2.0beta motif clustering catalog.
 
-### Color palettes
+### Color palettes (all versions)
 
 **Files**
-- `cellid_colors.tsv` — Cell type color palette (canonical: `igvf_sc-islet_10X-Multiome/config/cell_type_metadata.tsv`).
-- `condition_colors.tsv` — Condition color palette (canonical: `config/condition_metadata.tsv`).
+- `cellid_colors.tsv` — cell type color palette (canonical source: `igvf_sc-islet_10X-Multiome/config/cell_type_metadata.tsv`).
+- `condition_colors.tsv` — condition color palette (canonical source: `config/condition_metadata.tsv`).
 
-### Barcode whitelists (v1 / v2 only — CellRanger-ARC)
+### Barcode whitelists
 
 **Files**
-- `737K-arc-v1.txt.gz` — 10X barcode whitelist (Multiome ARC).
+- v1, v2: `737K-arc-v1.txt.gz` (CellRanger-ARC Multiome whitelist).
+- v3: kallisto-bustools whitelist used by the IGVF uniform pipeline (different file; ships only under `v3/0_ref/`).
 
-### CellRanger ARC config templates (v1 / v2 only)
+### CellRanger-ARC config templates (v1 / v2 only)
 
 **Files**
 - `10x_multiome_ATAC.yaml.j2`
 - `10x_multiome_RNA.yaml.j2`
 
-### Other reference files
+These templates do not ship under `v3/0_ref/` — v3 doesn't use ARC.
+
+### Other reference files (all versions)
 
 **Files**
 - `sc_islet_genelist.txt` — curated SC-islet gene list.
@@ -171,15 +184,15 @@ v2 (round 2 endocrine, three flavors):
 - `cell_x_gene.soupx_umi_counts.endocrine_celltypes.slim.h5ad` — counts + metadata only (no intermediate layers)
 - `cell_x_gene.soupx_umi_counts.endocrine_celltypes.full.h5ad` — full object with all computed layers
 
-v3 (kallisto-bustools UMI counts; round 2 endocrine):
-- `cell_x_gene.umi_counts.endocrine_celltypes.annotated.h5ad`
-- `cell_x_gene.umi_counts.endocrine_celltypes.slim.h5ad`
-- `cell_x_gene.umi_counts.endocrine_celltypes.full.h5ad`
+v3 (kallisto-bustools counts, then SoupX via cellcommander qc_RNA; round 2 endocrine):
+- `cell_x_gene.soupx_umi_counts.endocrine_celltypes.annotated.h5ad`
+- `cell_x_gene.soupx_umi_counts.endocrine_celltypes.slim.h5ad`
+- `cell_x_gene.soupx_umi_counts.endocrine_celltypes.full.h5ad`
 
-(v3 drops `soupx_` from the filename — kallisto-bustools doesn't apply SoupX.)
+(v3 still applies SoupX as part of the QC step — `bin/2_sample_qc/scripts/qc_RNA_uniform.sh` invokes cellcommander which runs SoupX. The h5ad layer is named `counts` but is SoupX-corrected.)
 
 **Data Matrix**
-- .X: sparse matrix — UMI counts (SoupX-corrected for v1/v2; uncorrected kallisto-bustools for v3)
+- .X: sparse matrix — SoupX-corrected UMI counts (all versions)
 
 **Observations (.obs)**
 
@@ -333,7 +346,7 @@ TSV mirror that's easier for R / shell consumers.
 - `{grouping}/pseudobulk_filter_metadata.csv`
 
 **Data Matrix (`pseudobulk_no_filter.h5ad`)**
-- .X: dense int matrix — summed UMI counts (SoupX-corrected for v1/v2 when those land here; uncorrected kallisto-bustools for v3)
+- .X: dense int matrix — summed SoupX-corrected UMI counts (all versions apply SoupX)
 - shape: (n_pseudobulks, n_genes)
 
 **Observations (.obs) — pseudobulk metadata**
@@ -360,24 +373,24 @@ from these and writes to the corresponding bucket subtree.
 ```
 /cellar/users/aklie/data/datasets/igvf_sc-islet_10X-Multiome/
 
-# shared
-├── ref/                                                             → 0_ref/
-
 # v1 (CellRanger-ARC + YAP, 44 samples)
-├── archive/v1/results/9_upload/cell-by-X/                           → v1/1_cell-by-X/
-├── archive/v1/results/4_integration/atac/pseudobulk/                → v1/2_pseudobulk/atac/
-└── archive/v1/results/3_sample_qc/sample_metadata.tsv               → v1/sample_manifest.tsv  (44 rows)
+├── archive/v1/ref/  (or shared ref/ snapshot at v1's freeze)         → v1/0_ref/
+├── archive/v1/results/9_upload/cell-by-X/                            → v1/1_cell-by-X/
+├── archive/v1/results/4_integration/atac/pseudobulk/                 → v1/2_pseudobulk/atac/
+└── archive/v1/results/3_sample_qc/sample_metadata.tsv                → v1/sample_manifest.tsv  (44 rows)
 
 # v2 (CellRanger-ARC + YAP, 54 samples)
+├── archive/v2/ref/  (or shared ref/ snapshot at v2's freeze)         → v2/0_ref/
 ├── archive/v2/results/4_integration/rna/integrate/round_2/{slim,full,annotation}.h5ad   → v2/1_cell-by-X/
 ├── archive/v2/results/4_integration/atac/pseudobulk/{cell_type,cell_type-condition}/    → v2/2_pseudobulk/atac/
-└── archive/v2/results/1_get_data/sample_metadata.tsv                → v2/sample_manifest.tsv  (54 rows)
+└── archive/v2/results/1_get_data/sample_metadata.tsv                 → v2/sample_manifest.tsv  (54 rows)
 
 # v3 (IGVF uniform pipeline, 54 samples)
+├── ref/                                                              → v3/0_ref/
 ├── results/3_cell_annotation/rna/integrate/round_2/{slim,full,merge_annotated}.h5ad     → v3/1_cell-by-X/
-├── results/4_pseudobulking/atac/cell_type-condition/                → v3/2_pseudobulk/atac/cell_type-condition/
-├── results/4_pseudobulking/rna/sample_id-cell_type/                 → v3/2_pseudobulk/rna/sample_id-cell_type/
-└── bin/1_get_data/metadata/igvfds_to_sample_id.tsv                  → v3/sample_manifest.tsv  (54 rows + IGVFDS_id columns)
+├── results/4_pseudobulking/atac/cell_type-condition/                 → v3/2_pseudobulk/atac/cell_type-condition/
+├── results/4_pseudobulking/rna/sample_id-cell_type/                  → v3/2_pseudobulk/rna/sample_id-cell_type/
+└── bin/1_get_data/metadata/igvfds_to_sample_id.tsv                   → v3/sample_manifest.tsv  (54 rows + IGVFDS_id columns)
 ```
 
 Upload tooling: `archive/v{1,2}/bin/9_upload/` (ad-hoc notebooks); `bin/10_submission/`
