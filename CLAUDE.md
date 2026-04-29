@@ -59,7 +59,7 @@ stimulated_sc-islets/
 
 - **v3 (current, as of 2026-04-28):** IGVF uniform pipeline (kallisto-bustools + chromap), 54 samples. Code in `igvf-data/.../bin/{1_get_data,2_sample_qc,3_cell_annotation}/`, outputs in `results/{1_get_data,2_sample_qc,3_cell_annotation}/`. Stages 1–3 migrated; stages 4–10 still need to be ported from v2 — see `igvf-data/.../bin/README.md`.
 - **v2 (archived):** CellRanger-ARC + YAP, 54 samples. Frozen 2026-04-28. Code at `igvf-data/.../archive/v2/bin/`, outputs at `archive/v2/results/`. Manifest: `archive/v2/MANIFEST.md`.
-- **v1 (archived in place):** CellRanger-ARC + YAP, 44 samples. 3.0 TB; not physically moved. Pointer index: `igvf-data/.../archive/v1/MANIFEST.md`. Workspaces: `scratch/2026_01_30/` and `scratch/2026_02_02/`.
+- **v1 (archived):** CellRanger-ARC + YAP, 44 samples. 3.0 TB. Code at `igvf-data/.../archive/v1/bin/`, results at `igvf-data/.../archive/v1/results/` (moved from `scratch/2026_01_30/` on 2026-04-29; same filesystem rename). Manifest: `archive/v1/MANIFEST.md`. Supplementary: `scratch/2026_02_02/` (182 MB, refined peak-calling notebooks + v1 DESeq2).
 
 ## Technical notes
 
