@@ -65,10 +65,16 @@ Reference updates: 14 sites across `.sh`, `.py`, `.R`, `.yaml`, README files in 
 Per user note: stage 4 will eventually need to pseudobulk at multiple resolutions for both RNA and ATAC. Saved as a project memory so future sessions design with this in mind. Today only one grouping per modality is wired up (`sample_id-cell_type` for RNA; `cell_type-condition` for ATAC).
 
 ### Remaining items
-- Update stage-3 `4_cell_annotation.ipynb` to write `harmony_round_2_leiden_1.0_<grouping>.txt` with `-` separator (so future re-runs match the renamed annotation TSVs).
-- Verify ATAC pseudobulk completion (job `9870324` + 4 dependents) and inspect outputs. Job is healthy at ~24 min in; v2 reference ran in ~7h, 2-day wall time has plenty of headroom.
+- Verify ATAC pseudobulk completion (job `9870324` + 4 dependents) and inspect outputs. Job healthy at ~63 min in; v2 reference ran in ~7h, 2-day wall time has plenty of headroom.
 - After ATAC outputs land: stage 5 peak calling (#5) and stage 8 ChromBPNet (#1) become unblocked.
-- Memory updates saved today: separator convention (`+` → `-`); color config reference (`config/loader.py`); multi-resolution pseudobulking project plan.
+- **Separator convention (refined per user):** the `+` → `-` rule is *strict* for public-facing outputs (portal submission, GCP, deliverables). Internal/legacy notebook code that still emits `+` (e.g., stage-3 `4_cell_annotation.ipynb`) is NOT to be proactively patched — rename outputs in-place when needed. Memory updated to reflect.
+- Memory updates saved today: separator convention (clarified); color config reference (`config/loader.py`); multi-resolution pseudobulking project plan; never commit slurm logs.
+
+### Commits landed (04/29)
+- `tools/single_cell_utilities@fc0cff4` — fix snapatac2 `pseudobulk.sh` (stale script path + system-python fallback).
+- `igvf-data/igvf_sc-islet_10X-Multiome@d997518` — stage 4 ATAC pseudobulk: bug fixes, `+`→`-`, `metadata/` move.
+- `igvf-data/igvf_sc-islet_10X-Multiome@ae7e4c0` — apply stage-1 reorg pattern to stages 2/3/5/6/8/10 (six `.py` files moved to `scripts/`, four empty `metadata/` slots, ~14 reference updates).
+- `stimulated_sc-islets@fbde399` — TODAY.md 04/29 section.
 
 ---
 
