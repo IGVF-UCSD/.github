@@ -75,9 +75,9 @@ into the WashU Epigenome Browser, IGV, or any compatible viewer without auth.
 **Self-describing bucket.** Bucket-level docs ride along with the data so a
 fresh visitor with zero repo access can identify what's there, what each
 file means, how to load it, and how to pivot back to the HPC source.
-Anchors: `README.md`, `CONVENTIONS.md`, `DATA_MODEL.md`, and `schemas/` at
-the bucket root, plus a per-version `README.md` and `source_manifest.tsv`
-inside each `v{N}/`.
+Anchors: `README.md` at the bucket root + `schemas/` (which holds
+`CONVENTIONS.md`, `DATA_MODEL.md`, and per-artifact JSON Schemas), plus a
+per-version `README.md` and `source_manifest.tsv` inside each `v{N}/`.
 
 **Out of scope (deferred — not yet finalized in any version):**
 - Peak BED files (`narrowPeak`, `consensus_peak.bed`, `peak_sources.bed`).
@@ -93,9 +93,7 @@ These will be added once their methodology settles (issues #1, #4, #5).
 ```
 gs://igvf-data/igvf_sc-islet_10X-Multiome/
 ├── README.md                           # bucket-level: version matrix, "how to use" recipes
-├── CONVENTIONS.md                      # filename grammar, separator policy, group-token rules
-├── DATA_MODEL.md                       # cross-version semantic contract per data class
-├── schemas/                            # JSON Schema files for every bespoke artifact
+├── schemas/                            # CONVENTIONS.md, DATA_MODEL.md, per-artifact JSON Schemas
 ├── v1/                                 # CellRanger-ARC + YAP, 44 samples (partial subset)
 │   ├── README.md                       # v1-specific pipeline notes, inventory, examples
 │   ├── ref/
