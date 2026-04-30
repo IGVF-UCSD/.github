@@ -138,7 +138,7 @@ Common to every version: `ref/`, `sample_manifest.tsv`, `source_manifest.tsv`, `
 | `source_manifest.tsv` | ✓ | ✓ | ✓ | `bucket_path ↔ hpc_path` for every shipped object — lets nrnb-access collaborators pivot to local. |
 | `h5ad/cell_x_gene.soupx_umi_counts.endocrine_celltypes.h5ad` (slim) | ✓ | ✓ | ✓ | Canonical RNA matrix. Single slim flavor produced by the slim transform (see h5ad section below). |
 | `h5ad/cell_x_gene.soupx_umi_counts.SC.{alpha,beta,delta,EC}.h5ad` (per-cell splits, slim) | ✓ | — | — | v1-only convention. |
-| `h5ad/cell_x_peak.Tn5_insertion_counts.endocrine_celltypes.h5ad` (slim) | ✓ | ✓ | _TODO_ post-#5 | Same slim treatment. |
+| `h5ad/cell_x_peak.Tn5_insertion_counts.endocrine_celltypes.h5ad` (slim) | ✓ | — | _TODO_ post-#5 | v1 only currently — v2 never produced a canonical cell × peak slim h5ad; v3 will once stage-5 peak calling lands. |
 | `bigWig/<group>.ATAC.fpm.bw` | ✓ | ✓ | ✓ | Canonical browser-track signal. |
 | `bigWig/<group>.ATAC.counts.bw` | — | ✓ | ✓ | Useful for ChromBPNet; v1 skipped to slim it down. |
 | `fragments/<group>.ATAC.fragments.bed.gz` (+ `.scale_factor.txt`) | — | — | ✓ | Bulky, niche; v1/v2 stay on HPC by request. |
@@ -237,8 +237,7 @@ Parseable contract: [`schemas/cell_x_gene_h5ad.json`](igvf_sc-islet_10X-Multiome
 **v1**
 - `cell_x_peak.Tn5_insertion_counts.endocrine_celltypes.h5ad`
 
-**v2**
-- `cell_x_peak.Tn5_insertion_counts.endocrine_celltypes.h5ad`
+**v2** — does not have a canonical cell × peak slim h5ad. v2 produced peak count matrices at the pseudobulk level only (`results/5_peak_calling/<peak_set>/matrix/peak_mat.h5ad` on the HPC) — those are pseudobulk-by-peak, not cell-by-peak, so they don't fit the slim cell × X schema. nrnb-access users can read them locally.
 
 **v3** — _TODO_: not yet ported; ships once stage-5 peak calling completes.
 
