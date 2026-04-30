@@ -62,11 +62,29 @@ contains `+`.
 (v1/v2 via custom QC; v3 via cellcommander `qc_RNA_uniform.sh`). Filenames
 keep the `soupx_umi_counts` token across versions.
 
+**Immutability + latest pointer.** Each version subtree is **immutable once
+published**. Updates ship as a new version, never by overwrite. "Latest = v3"
+is documented in the top-level `README.md`, *not* via path aliasing or a
+root-level mirror — `data_hubs/` URLs in published manifests stay stable
+across releases.
+
+**Public read.** The bucket is public-read. `data_hubs/` JSON URLs use
+`https://storage.googleapis.com/...` directly (no signed URLs); paste them
+into the WashU Epigenome Browser, IGV, or any compatible viewer without auth.
+
+**Self-describing bucket.** Bucket-level docs ride along with the data so a
+fresh visitor with zero repo access can identify what's there, what each
+file means, how to load it, and how to pivot back to the HPC source.
+Anchors: `README.md`, `CONVENTIONS.md`, `DATA_MODEL.md`, and `schemas/` at
+the bucket root, plus a per-version `README.md` and `source_manifest.tsv`
+inside each `v{N}/`.
+
 **Out of scope (deferred — not yet finalized in any version):**
 - Peak BED files (`narrowPeak`, `consensus_peak.bed`, `peak_sources.bed`).
 - Differential expression / accessibility results (DESeq2 outputs).
+- RNA pseudobulks at varying groupings (per #1's multi-resolution plan).
 
-These will be added once their methodology settles (issues #4, #5).
+These will be added once their methodology settles (issues #1, #4, #5).
 
 ---
 
@@ -74,26 +92,62 @@ These will be added once their methodology settles (issues #4, #5).
 
 ```
 gs://igvf-data/igvf_sc-islet_10X-Multiome/
-├── v1/                                 # CellRanger-ARC + YAP, 44 samples
+├── README.md                           # bucket-level: version matrix, "how to use" recipes
+├── CONVENTIONS.md                      # filename grammar, separator policy, group-token rules
+├── DATA_MODEL.md                       # cross-version semantic contract per data class
+├── schemas/                            # JSON Schema files for every bespoke artifact
+├── v1/                                 # CellRanger-ARC + YAP, 44 samples (partial subset)
+│   ├── README.md                       # v1-specific pipeline notes, inventory, examples
 │   ├── ref/
 │   ├── sample_manifest.tsv
-│   ├── h5ad/                           # cell-by-X matrices
-│   ├── bigWig/                         # *.ATAC.counts.bw, *.ATAC.fpm.bw
-│   ├── fragments/                      # *.ATAC.fragments.bed.gz, *.ATAC.scale_factor.txt
-│   ├── tagAlign/                       # *.ATAC.tagAlign.sort.gz (+ .tbi)
+│   ├── source_manifest.tsv             # bucket_path ↔ hpc_path mapping for nrnb-access pivot
+│   ├── h5ad/                           # endocrine combined + 4 per-celltype splits
+│   ├── bigWig/                         # *.ATAC.fpm.bw only (no counts in v1)
 │   └── data_hubs/                      # JSON manifests for browser tracks
 ├── v2/                                 # CellRanger-ARC + YAP, 54 samples
-│   └── (same layout as v1)
-└── v3/                                 # IGVF uniform pipeline, 54 samples
+│   ├── README.md
+│   ├── ref/
+│   ├── sample_manifest.tsv
+│   ├── source_manifest.tsv
+│   ├── h5ad/                           # endocrine combined + cell_x_peak
+│   ├── bigWig/                         # *.ATAC.{counts,fpm}.bw
+│   └── data_hubs/
+└── v3/                                 # IGVF uniform pipeline, 54 samples (canonical)
+    ├── README.md
     ├── ref/
     ├── sample_manifest.tsv
+    ├── source_manifest.tsv
     ├── h5ad/
     ├── bigWig/
-    ├── fragments/
-    ├── tagAlign/
-    ├── pseudobulk_rna/                 # new in v3
+    ├── fragments/                      # v3 only — full set
+    ├── tagAlign/                       # v3 only — full set
     └── data_hubs/
 ```
+
+`fragments/` and `tagAlign/` are **v3 only** by design — see "Subset shipped per version" below. v1 / v2 fragments and tagAlign live on the HPC archive at `archive/v{1,2}/results/4_integration/atac/pseudobulk/` and are accessible to nrnb-access collaborators via `source_manifest.tsv`.
+
+---
+
+## Subset shipped per version
+
+Common to every version: `ref/`, `sample_manifest.tsv`, `source_manifest.tsv`, `data_hubs/`, `README.md`.
+
+| Object class | v1 | v2 | v3 | Rationale |
+|---|---|---|---|---|
+| `README.md` (per version) | ✓ | ✓ | ✓ | Self-description: pipeline, sample count, what shipped, what's omitted (and why), worked examples. |
+| `ref/` | ✓ | ✓ | ✓ | Per-version snapshot. Pipeline-specific files (ARC whitelists v1/v2; kallisto-bustools whitelist v3) only under their version. |
+| `sample_manifest.tsv` | ✓ (44) | ✓ (54) | ✓ (54 + IGVFDS_id) | Sample-level metadata. |
+| `source_manifest.tsv` | ✓ | ✓ | ✓ | `bucket_path ↔ hpc_path` for every shipped object — lets nrnb-access collaborators pivot to local. |
+| `h5ad/cell_x_gene.soupx_umi_counts.endocrine_celltypes.h5ad` (slim) | ✓ | ✓ | ✓ | Canonical RNA matrix. Single slim flavor produced by the slim transform (see h5ad section below). |
+| `h5ad/cell_x_gene.soupx_umi_counts.SC.{alpha,beta,delta,EC}.h5ad` (per-cell splits, slim) | ✓ | — | — | v1-only convention. |
+| `h5ad/cell_x_peak.Tn5_insertion_counts.endocrine_celltypes.h5ad` (slim) | ✓ | ✓ | _TODO_ post-#5 | Same slim treatment. |
+| `bigWig/<group>.ATAC.fpm.bw` | ✓ | ✓ | ✓ | Canonical browser-track signal. |
+| `bigWig/<group>.ATAC.counts.bw` | — | ✓ | ✓ | Useful for ChromBPNet; v1 skipped to slim it down. |
+| `fragments/<group>.ATAC.fragments.bed.gz` (+ `.scale_factor.txt`) | — | — | ✓ | Bulky, niche; v1/v2 stay on HPC by request. |
+| `tagAlign/<group>.ATAC.tagAlign.sort.gz` (+ `.tbi`) | — | — | ✓ | Same logic as fragments. |
+| `data_hubs/igvf_sc-islet_10X-Multiome_v{N}_ATAC_fpm_bigWigs.json` | ✓ | ✓ | ✓ | One-click browser-track manifest. |
+
+Out-of-scope items (RNA pseudobulks, peak BEDs, DESeq2 outputs) are NOT in any version yet — see the deferred list above.
 
 ---
 
@@ -143,6 +197,14 @@ sets and identifiers differ.
 
 ## v{N}/h5ad/ — Single-cell matrices
 
+A **single slim h5ad per matrix type per grouping** ships per version. No
+slim/full/annotated trio — the bucket flavor is produced by the project's
+`slim_h5ad()` transform applied to the HPC `slim.h5ad`: `.X = layers["counts"]`,
+layers cleared, `.obs` renamed to the canonical bucket schema, `cell_type`
+ensured (joined from the annotation TSV if missing).
+
+Parseable contract: [`schemas/cell_x_gene_h5ad.json`](igvf_sc-islet_10X-Multiome/schemas/cell_x_gene_h5ad.json), [`schemas/cell_x_peak_h5ad.json`](igvf_sc-islet_10X-Multiome/schemas/cell_x_peak_h5ad.json).
+
 ### Cell × gene UMI count matrices
 
 **v1** (per-celltype + endocrine combined)
@@ -152,10 +214,8 @@ sets and identifiers differ.
 - `cell_x_gene.soupx_umi_counts.SC.delta.h5ad`
 - `cell_x_gene.soupx_umi_counts.SC.EC.h5ad`
 
-**v2 / v3** (round 2 endocrine — slim / full / annotated trio)
-- `cell_x_gene.soupx_umi_counts.endocrine_celltypes.annotated.h5ad`
-- `cell_x_gene.soupx_umi_counts.endocrine_celltypes.slim.h5ad`
-- `cell_x_gene.soupx_umi_counts.endocrine_celltypes.full.h5ad`
+**v2 / v3** (round 2 endocrine combined; single slim flavor)
+- `cell_x_gene.soupx_umi_counts.endocrine_celltypes.h5ad`
 
 **Data Matrix**
 - `.X`: sparse — SoupX-corrected UMI counts (all versions)
@@ -287,39 +347,80 @@ Per-modality JSON manifests pointing browser tracks at the corresponding
 
 ---
 
-## v3/pseudobulk_rna/ — RNA pseudobulk gene-count matrices (v3 only currently)
+## v{N}/source_manifest.tsv — Source-mapping manifest
 
-Stage-4 RNA pseudobulks landed in v3 (HPC: `results/4_pseudobulking/rna/<grouping>/`).
-Out of scope for v1 / v2 in this spec — those versions' DE work used HPC-side
-per-cell-type pseudobulks pre-dating this canonical layout.
+Per-version TSV mapping every shipped bucket object back to its HPC source
+path. Lets collaborators with nrnb (HPC) access skip the GCS download and
+read files locally without re-downloading.
 
-**Files (per `<grouping>`)**
-- `<grouping>.pseudobulk_no_filter.h5ad` — AnnData; rows = pseudobulks, cols = genes
-- `<grouping>.pseudobulk_no_filter.tsv` — gene × pseudobulk count matrix (TSV mirror)
-- `<grouping>.pseudobulk_no_filter_metadata.csv` — per-pseudobulk metadata
-- `<grouping>.pseudobulk_filter.{h5ad,tsv,csv}` — same layout, post-filter
+Parseable contract: [`schemas/source_manifest_tsv.json`](igvf_sc-islet_10X-Multiome/schemas/source_manifest_tsv.json).
 
-### Groupings present
+Columns: `bucket_path`, `hpc_path`, `data_class`, `size_bytes`, `md5`, `version`, `notes`.
 
-| Version | Groupings |
+For h5ads where the bucket file isn't byte-identical to the HPC source (the
+`slim_h5ad()` transform changed the `.obs` schema), `hpc_path` points at the
+*original* HPC `slim.h5ad` and `notes` flags the transform — an HPC user can
+re-derive the bucket file by running the same transform locally.
+
+The manifest is emitted by the per-version upload notebook as a side-effect
+of every `gcp_cp(src, dst)` call.
+
+---
+
+## Schemas
+
+`igvf_sc-islet_10X-Multiome/schemas/` holds the parseable contract for every
+bespoke artifact shipped to the bucket. Mirrors the GaiusTx/gstudio
+[schemas/](https://github.com/GaiusTx/gstudio/tree/main/schemas) pattern.
+
+The directory ships to the bucket root (`gs://.../schemas/`) so a fresh
+visitor with no repo access has the full contract available alongside the
+data.
+
+| File | Purpose |
 |---|---|
-| v3 | `sample_id-cell_type` (more groupings TBD per multi-resolution plan) |
+| `CONVENTIONS.md` | Filename grammar, separator policy, group-token rules. Shared rules across all schemas. |
+| `DATA_MODEL.md` | Cross-version semantic contract per data class. Human-readable companion to the JSON Schemas. |
+| `cell_x_gene_h5ad.json` | JSON Schema — slim cell × gene h5ad. |
+| `cell_x_peak_h5ad.json` | JSON Schema — slim cell × peak h5ad. |
+| `sample_manifest_tsv.json` | Column schema for `sample_manifest.tsv` (per-version columns flagged). |
+| `source_manifest_tsv.json` | Column schema for `source_manifest.tsv`. |
+| `data_hubs_bigwigs_json.json` | JSON Schema for the WashU data_hub JSON. |
+| `bigwig_filename.json` | Filename grammar — `<group>.<modality>.{counts,fpm}.bw`. |
+| `fragments_filename.json` | Filename grammar — fragments + scale_factor + tagAlign. |
 
-**Data Matrix (`pseudobulk_no_filter.h5ad`)**
-- `.X`: dense int — summed SoupX-corrected UMI counts
-- shape: `(n_pseudobulks, n_genes)`
+Each JSON Schema has a project-local `igvf` metadata block (`schema_version`,
+`last_modified`, `applies_to_versions`, `produced_by`, `consumed_by`,
+`changelog`) — see `CONVENTIONS.md` for the authoring contract.
 
-**Observations (.obs)**
-- `pseudobulk` (index): str — e.g. `{sample_id}_{cell_type}` for `sample_id-cell_type`
-- `sample_id`, `cell_type`, `batch`/`differentiation_batch`
-- `condition`, `timepoint`, `rep`
-- `psbulk_cells`, `psbulk_counts`
+---
 
-**Variables (.var)**
-- index: HUGO gene symbol
+## Upload tooling
 
-**Provenance**
-- https://github.com/adamklie/single_cell_utilities/blob/dev/functional_analysis/pseudobulk.py
+Per-version Jupyter notebooks following the
+[GaiusTx/Muto_mouse-kidney_10X-Multiome `bin/7_upload/1_upload_to_gcp.ipynb`](https://github.com/GaiusTx/Muto_mouse-kidney_10X-Multiome/blob/main/bin/7_upload/1_upload_to_gcp.ipynb)
+pattern: single sectioned notebook per version, inline `gcp_cp` +
+`local_exists` helpers, top-of-notebook `DRY_RUN` / `OVERWRITE` flags,
+per-section missing-file report, end-of-notebook `gsutil ls -r` verification
++ per-class sanity diff vs expected, plus a config-regeneration step that
+emits `config/gcp/...yaml` mappings from the cell-type / grouping list.
+
+| Version | Notebook path |
+|---|---|
+| v1 | `archive/v1/bin/9_upload/1_upload_to_gcp.ipynb` |
+| v2 | `archive/v2/bin/9_upload/1_upload_to_gcp.ipynb` |
+| v3 | `bin/10_submission/1_upload_to_gcp.ipynb` |
+
+A light shared helper at `tools/single_cell_utilities/gcs_upload.py` exposes
+the genuinely complex bits (`slim_h5ad`, `generate_data_hub_json`,
+`compute_md5`); everything else (`gcp_cp`, `local_exists`, dry-run summary,
+manifest collection, sanity diffs) lives inline per-notebook (matches the
+Muto pattern).
+
+**Dry-run-first contract.** Two-phase upload mandatory: Phase 1 prints the
+manifest as a table (src → dst, size, exists-remote, action) plus total GB
+and total file count for human review; Phase 2 runs `gcloud storage cp` only
+after Phase 1 passes review.
 
 ---
 
@@ -339,17 +440,18 @@ writes to the corresponding bucket subtree.
 
 # v2 (CellRanger-ARC + YAP, 54 samples)
 ├── archive/v2/ref/                                                         → v2/ref/
-├── archive/v2/results/4_integration/rna/integrate/round_2/{slim,full,annotation}.h5ad   → v2/h5ad/
-├── archive/v2/results/4_integration/atac/pseudobulk/<grouping>/{fragments, count_bws, norm_bws, tagAlign}/  → flatten to v2/{fragments, bigWig, tagAlign}/
+├── archive/v2/results/4_integration/rna/integrate/round_2/slim.h5ad        → slim_h5ad() → v2/h5ad/cell_x_gene.soupx_umi_counts.endocrine_celltypes.h5ad
+├── archive/v2/results/4_integration/atac/pseudobulk/<grouping>/{count_bws, norm_bws}/   → flatten + rename → v2/bigWig/<group>.ATAC.{counts,fpm}.bw
 └── archive/v2/results/1_get_data/sample_metadata.tsv                       → v2/sample_manifest.tsv  (54 rows)
 
 # v3 (IGVF uniform pipeline, 54 samples)
 ├── ref/                                                                    → v3/ref/
-├── results/3_cell_annotation/rna/integrate/round_2/{slim,full,merge_annotated}.h5ad     → v3/h5ad/
-├── results/4_pseudobulking/atac/<grouping>/{fragments, count_bws, norm_bws, tagAlign}/  → flatten to v3/{fragments, bigWig, tagAlign}/
-├── results/4_pseudobulking/rna/<grouping>/                                 → v3/pseudobulk_rna/
+├── results/3_cell_annotation/rna/integrate/round_2/slim.h5ad               → slim_h5ad() → v3/h5ad/cell_x_gene.soupx_umi_counts.endocrine_celltypes.h5ad
+├── results/4_pseudobulking/atac/<grouping>/{fragments, count_bws, norm_bws, tagAlign}/  → flatten + rename → v3/{fragments, bigWig, tagAlign}/
 └── bin/1_get_data/metadata/igvfds_to_sample_id.tsv                         → v3/sample_manifest.tsv  (54 rows + IGVFDS_id columns)
 ```
+
+(`pseudobulk_rna/` is **deferred** for the initial upload — out of scope per #1's multi-resolution plan.)
 
 The "flatten" step renames HPC paths like
 `pseudobulk/cell_type-condition/count_bws/SC.beta_control_unstranded.bw`
